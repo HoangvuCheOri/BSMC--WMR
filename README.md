@@ -12,8 +12,7 @@ Hệ thống gồm 3 tầng chính:
 - ESP32 được sử dụng làm cầu nối truyền thông không dây giữa ROS2 và STM32 bằng giao thức ESP-NOW.
 - ESP32 phía máy tính nhận dữ liệu điều khiển từ ROS2 qua USB Serial và truyền không dây sang robot.
 - ESP32 phía robot nhận dữ liệu điều khiển và gửi xuống STM32 qua UART.
-- Dữ liệu trạng thái của robot được gửi ngược từ STM32 về ROS2 thông qua ESP32.
-- Hệ thống giúp loại bỏ dây nối trực tiếp giữa robot và máy tính điều khiển.
+- Dữ liệu trạng thái của robot được gửi ngược từ STM32 về ROS2 thông qua ESP32. Hệ thống giúp loại bỏ dây nối trực tiếp giữa robot và máy tính điều khiển.
 ---
 ## Tầng điều khiển cấp thấp (Low-Level Control)
 
