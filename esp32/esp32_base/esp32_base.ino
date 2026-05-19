@@ -1,39 +1,13 @@
-/**
- * @file    esp32_base.ino
- * @brief   ESP32 cắm USB laptop — ESP-NOW Base Station
- * @version 1.0
- *
- * Nhiệm vụ:
- *   1. Nhận DATA qua ESP-NOW ← ESP32-Rover (trên xe)
- *      → Gửi ra USB Serial → robot_serial_bridge.py (ROS2)
- *   2. Nhận CMD qua USB Serial ← robot_serial_bridge.py (ROS2)
- *      → Gửi qua ESP-NOW → ESP32-Rover → STM32
- *
- * Kết nối: Cắm trực tiếp USB vào laptop, không cần dây nào khác.
- *
- * QUAN TRỌNG: Trước khi nạp esp32_rover.ino,
- *   chạy sketch này trước để lấy MAC (hiện trên Serial Monitor),
- *   sau đó điền vào BASE_MAC[] trong esp32_rover.ino
- */
-
 #include <esp_now.h>
 #include <WiFi.h>
 #include <string.h>
 
-// ═══════════════════════════════════════════════════════════════
-//  CẤU HÌNH — SỬA TRƯỚC KHI NẠP
-// ═══════════════════════════════════════════════════════════════
-// MAC address của ESP32-Rover (trên xe)
-// Lấy bằng cách nạp esp32_rover trước, đọc Serial Monitor dòng "[ROVER] MAC: ..."
-uint8_t ROVER_MAC[] = {0xB4, 0xBF, 0xE9, 0x14, 0x21, 0xA4}; // ← SỬA Ở ĐÂY
+uint8_t ROVER_MAC[] = {0xB4, 0xBF, 0xE9, 0x14, 0x21, 0xA4}; 
 
-// Baud rate USB Serial giao tiếp với ROS2 node
-// Phải khớp với tham số 'baud' trong robot_serial_bridge
 #define USB_BAUD    115200
-// ═══════════════════════════════════════════════════════════════
 
 typedef struct __attribute__((packed)) {
-  uint8_t  type;         // 'D' = DATA, 'C' = CMD
+  uint8_t  type;        
   char     payload[72];
 } EspNowPacket;
 
@@ -46,50 +20,35 @@ int  usb_idx = 0;
 
 volatile bool peer_added = false;
 
-// ───────────────────────────────────────────────────────────────
-//  Callback: Nhận ESP-NOW (DATA từ Rover)
-//  → In ra USB Serial cho robot_serial_bridge.py đọc
-//  *** ESP32 Arduino Core 3.x: dùng esp_now_recv_info_t thay vì mac ***
-// ───────────────────────────────────────────────────────────────
 void on_data_recv(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len) {
   if (len < (int)sizeof(EspNowPacket)) return;
   const EspNowPacket *pkt = (const EspNowPacket *)data;
 
   if (pkt->type == 'D') {
-    // In ra USB Serial đúng format: DATA,x,y,z\r\n
-    // robot_serial_bridge.py dùng readline() → cần \n ở cuối
     Serial.print(pkt->payload);
     Serial.print("\r\n");
   }
 }
 
 void on_data_sent(const wifi_tx_info_t *tx_info, esp_now_send_status_t status) {
-  // Optional: debug
-  // Serial.printf("[BASE] Send %s\n", status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAIL");
+
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  SETUP
-// ═══════════════════════════════════════════════════════════════
 void setup() {
   Serial.begin(USB_BAUD);
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
-  delay(100); // FIX: Đợi WiFi khởi tạo xong (tránh lỗi MAC 00:00:00:00:00:00 trên Core 3.x)
-
-  // In MAC để điền vào ROVER_MAC nếu cần
+  delay(100); 
   Serial.print("[BASE] My MAC: ");
   Serial.println(WiFi.macAddress());
 
-  // Kiểm tra ROVER_MAC đã cấu hình chưa
   bool mac_valid = false;
   for (int i = 0; i < 6; i++) {
     if (ROVER_MAC[i] != 0xFF) { mac_valid = true; break; }
   }
   if (!mac_valid) {
     Serial.println("[WARNING] ROVER_MAC chua duoc cau hinh. Chi co the nhan DATA, khong gui CMD duoc.");
-    // Vẫn tiếp tục để có thể nhận DATA từ Rover (nếu Rover đã biết MAC base)
   }
 
   if (esp_now_init() != ESP_OK) {
@@ -116,18 +75,12 @@ void setup() {
 
   Serial.println("[BASE] Ready — forwarding ESP-NOW <-> USB Serial");
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  LOOP — Đọc CMD từ USB Serial (ROS2), gửi qua ESP-NOW → Rover
-// ═══════════════════════════════════════════════════════════════
 void loop() {
   while (Serial.available()) {
     char c = (char)Serial.read();
 
     if (c == '\n') {
       usb_buf[usb_idx] = '\0';
-
-      // Chỉ forward "CMD,..." → Rover
       if (strncmp(usb_buf, "CMD,", 4) == 0 && peer_added) {
         tx_pkt.type = 'C';
         strncpy(tx_pkt.payload, usb_buf, sizeof(tx_pkt.payload) - 1);
@@ -135,7 +88,6 @@ void loop() {
 
         esp_now_send(ROVER_MAC, (uint8_t *)&tx_pkt, sizeof(EspNowPacket));
       }
-      // Forward "STOP" và "RESET_ODOM" nếu cần
       else if ((strncmp(usb_buf, "STOP", 4) == 0 ||
                 strncmp(usb_buf, "RESET_ODOM", 10) == 0) && peer_added) {
         tx_pkt.type = 'C';
