@@ -138,7 +138,7 @@ class StateBridgeNode(Node):
         rpm_L_raw = float(msg.data[0]) / 10.0
         rpm_R     = float(msg.data[1]) / 10.0
         # Đảo dấu gyro_z để khớp chuẩn ROS2 (quay CCW là dương)
-        gyro_z    = -float(msg.data[2]) / 1000.0
+        gyro_z    = float(msg.data[2]) / 1000.0
 
         # Hệ số hiệu chỉnh bánh trái (khớp STM32 1.22f)
         rpm_L = math.copysign(abs(rpm_L_raw) * self.WHEEL_CALIB_L, rpm_L_raw)
