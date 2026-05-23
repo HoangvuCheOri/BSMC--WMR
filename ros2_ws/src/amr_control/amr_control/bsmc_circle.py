@@ -52,23 +52,23 @@ class BSMCCircle(Node):
         self.VD = self.R * self.W
 
         # Backstepping gains
-        self.k1 = 2.5
-        self.k2 = 2.5
-        self.k3 = 0.8
+        self.k1 = 1.1
+        self.k2 = 1.2
+        self.k3 = 1.1
 
         # Weak SMC
-        self.Ks1 = 0.02
-        self.Ks2 = 0.10
+        self.Ks1 = 0.005
+        self.Ks2 = 0.015
 
-        self.phi1 = 0.35
-        self.phi2 = 0.8
+        self.phi1 = 0.45
+        self.phi2 = 1.2
 
         # Coupling lateral error to heading sliding surface
         self.c = 1.0
 
         # Velocity limits
-        self.MAX_V = 0.45
-        self.MAX_W = 0.8
+        self.MAX_V = 0.35
+        self.MAX_W = 0.7
 
         # Deadband
         self.DEADBAND_EX = 0.003
@@ -226,23 +226,16 @@ class BSMCCircle(Node):
         sat_s1 = self.sat(s1 / self.phi1)
         sat_s2 = self.sat(s2 / self.phi2)
 
-        # ✅ BSMC chuẩn — w_cmd trước, v_cmd dùng w_cmd
-        # Mẫu số từ backstepping derivation (phải clamp tránh singularity)
-        denom = 1.0 + self.c * e_x
-        denom = math.copysign(max(abs(denom), 0.3), denom)
+        v_cmd = (
+            v_d * math.cos(e_theta)
+            + self.k1 * e_x
+            + self.Ks1 * sat_s1
+        )
 
         w_cmd = (
             w_d
-            + self.c * v_d * math.sin(e_theta)   # feedforward coupling (c, không phải k3)
-            + self.k2 * s2                         # backstepping term
-            + self.Ks2 * sat_s2                    # SMC term
-        ) / denom
-
-        v_cmd = (
-            v_d * math.cos(e_theta)               # feedforward
-            + w_cmd * e_y                          # coupling từ backstepping step 1
-            + self.k1 * e_x                        # backstepping term
-            + self.Ks1 * sat_s1                    # SMC term
+            + v_d * (self.k2 * e_y + self.k3 * math.sin(e_theta))
+            + self.Ks2 * sat_s2
         )
 
         v_cmd = max(0.0, min(self.MAX_V, v_cmd))
