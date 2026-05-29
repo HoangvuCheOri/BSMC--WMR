@@ -1,7 +1,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <string.h>
-uint8_t BASE_MAC[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t BASE_MAC[] = {0x68, 0xFE, 0x71, 0x13, 0x14, 0xBC};
 
 #define STM32_SERIAL   Serial2
 #define STM32_BAUD     115200
